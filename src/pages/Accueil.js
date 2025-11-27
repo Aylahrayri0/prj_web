@@ -45,9 +45,9 @@ export default function Accueil({ isLoggedIn, setIsLoggedIn }) {
         </div>
         <nav className="nav-menu">
           <button className="nav-btn active" onClick={() => navigate('/')}>Accueil</button>
-          <button className="nav-btn">Témoignages</button>
+          <button className="nav-btn" onClick={() => navigate('/temoignages')}>Témoignages</button>
           <button className="nav-btn" onClick={handleDonClick}>Dons</button>
-          <button className="nav-btn">Administarateur</button>
+          <button className="nav-btn" onClick={() => navigate('/administrateur')}>Administrateur</button>
           {isLoggedIn && (
             <button className="nav-btn logout-btn" onClick={handleLogout}>Déconnexion</button>
           )}

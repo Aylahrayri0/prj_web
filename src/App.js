@@ -6,6 +6,8 @@ import Inscription from "./pages/Inscription";
 import Connexion from "./pages/Connexion";
 import Success from "./pages/Success";
 import SuccessConfirmation from "./pages/SuccessConfirmation";
+import Temoignages from "./pages/Temoignages";
+import Administrateur from "./pages/Administrateur";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -32,6 +34,8 @@ function App() {
         <Route path="/connexion" element={<Connexion setIsLoggedIn={setIsLoggedIn} />} />
         <Route path="/success" element={<Success isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />} />
         <Route path="/success-confirmation" element={<SuccessConfirmation />} />
+        <Route path="/temoignages" element={<Temoignages />} />
+        <Route path="/administrateur" element={<Administrateur />} />
       </Routes>
     </Router>
   );

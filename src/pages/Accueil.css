@@ -16,6 +16,7 @@ body {
 .container {
   width: 100%;
   overflow-x: hidden;
+  padding-top: 75px;
 }
 
 /* ===== HEADER ===== */
@@ -30,6 +31,7 @@ body {
   background: linear-gradient(135deg, #1aa655 0%, #66d98f 20%, #ffffff 50%, #ffb3b3 80%, #ee2e24 100%);
   z-index: 1000;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  height: 75px;
 }
 
 .header-left {
@@ -104,7 +106,8 @@ body {
 
 /* ===== HERO SECTION ===== */
 .hero {
-  margin-top: 80px;
+  margin-top: -75px;
+  padding-top: 75px;
   position: relative;
   height: 85vh;
   background-size: cover;
