@@ -161,9 +161,9 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
         </div>
         <nav className="nav-menu">
           <button className="nav-btn" onClick={() => navigate('/accueil')}>Accueil</button>
-          <button className="nav-btn">Témoignages</button>
           <button className="nav-btn active" onClick={() => navigate('/dons')}>Dons</button>
-          <button className="nav-btn">Administarateur</button>
+          <button className="nav-btn" onClick={() => navigate('/temoignages')}>Témoignages</button>
+          <button className="nav-btn" onClick={() => navigate('/administrateur')}>Administrateur</button>
           {isLoggedIn && (
             <button className="nav-btn logout-btn" onClick={handleLogout}>Déconnexion</button>
           )}
