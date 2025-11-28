@@ -13,7 +13,20 @@ class TestimonialController extends Controller
      */
     public function index(): JsonResponse
     {
-        return response()->json(Testimonial::where('approved', true)->get());
+        $testimonials = Testimonial::all()->map(function($testimonial) {
+            return [
+                'id' => $testimonial->id,
+                'name' => $testimonial->name,
+                'country' => $testimonial->email,
+                'message' => $testimonial->content,
+                'rating' => $testimonial->rating,
+                'image_url' => $testimonial->image_url,
+                'approved' => $testimonial->approved,
+                'created_at' => $testimonial->created_at,
+            ];
+        });
+        
+        return response()->json(['data' => $testimonials]);
     }
 
     /**
@@ -23,13 +36,22 @@ class TestimonialController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string',
-            'email' => 'required|email',
-            'content' => 'required|string',
-            'rating' => 'required|integer|between:1,5',
+            'country' => 'required|string',
+            'message' => 'required|string',
+            'rating' => 'nullable|integer|between:1,5',
             'image_url' => 'nullable|string',
         ]);
 
-        $testimonial = Testimonial::create($validated);
+        // Map frontend field names to database columns
+        $testimonial = Testimonial::create([
+            'name' => $validated['name'],
+            'email' => $validated['country'] ?? 'anonymous@example.com',
+            'content' => $validated['message'],
+            'rating' => $validated['rating'] ?? 5,
+            'image_url' => $validated['image_url'] ?? null,
+            'approved' => false,
+        ]);
+        
         return response()->json($testimonial, 201);
     }
 

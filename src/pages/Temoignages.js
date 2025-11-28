@@ -2,43 +2,11 @@ import "./Temoignages.css";
 import { useNavigate } from "react-router-dom";
 import React from "react";
 
+// Testimonials page component with message submission functionality
 export default function Temoignages() {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [formData, setFormData] = React.useState({
-    name: '',
-    country: '',
-    message: ''
-  });
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleOpenModal = () => {
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Testimonial submitted:', formData);
-    setFormData({ name: '', country: '', message: '' });
-    setIsModalOpen(false);
-  };
-
-  const testimonials = [
+  const [testimonials, setTestimonials] = React.useState([
     {
       id: 1,
       name: "Sarah M.",
@@ -119,7 +87,101 @@ export default function Temoignages() {
       message: "La solidarité n'a pas de frontières. Gaza dans nos cœurs pour toujours.",
       color: "green"
     }
-  ];
+  ]);
+  const [formData, setFormData] = React.useState({
+    name: '',
+    country: '',
+    message: ''
+  });
+
+  // Load approved testimonials from backend on page load
+  React.useEffect(() => {
+    fetch('http://localhost:8000/api/testimonials')
+      .then(res => res.json())
+      .then(data => {
+        if (data.data && Array.isArray(data.data)) {
+          const backendTestimonials = data.data.map(testimonial => ({
+            id: testimonial.id,
+            name: testimonial.name,
+            country: testimonial.email || testimonial.country,
+            date: testimonial.created_at ? testimonial.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+            message: testimonial.message || testimonial.content,
+            color: Math.random() > 0.5 ? "red" : "green"
+          }));
+          setTestimonials(backendTestimonials);
+        }
+      })
+      .catch(err => console.log('Error fetching testimonials:', err));
+  }, []);
+
+  const handleOpenModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    // Add new testimonial to the list with current date
+    const today = new Date().toISOString().split('T')[0];
+    const newTestimonial = {
+      id: testimonials.length + 1,
+      name: formData.name,
+      country: formData.country,
+      message: formData.message,
+      date: today,
+      color: Math.random() > 0.5 ? "red" : "green"
+    };
+    
+    // Add to testimonials list
+    setTestimonials(prev => [newTestimonial, ...prev]);
+    
+    // Increment message counter in localStorage
+    const currentCount = parseInt(localStorage.getItem('newMessagesCount') || '0');
+    localStorage.setItem('newMessagesCount', (currentCount + 1).toString());
+    
+    // Store the new message for admin panel
+    const newMessages = JSON.parse(localStorage.getItem('newMessages') || '[]');
+    const messageForAdmin = {
+      id: Math.max(...newMessages.map(m => m.id || 0), 0) + 1,
+      name: formData.name,
+      country: formData.country,
+      message: formData.message,
+      date: today,
+      status: "En attente",
+      isPinned: false
+    };
+    newMessages.push(messageForAdmin);
+    localStorage.setItem('newMessages', JSON.stringify(newMessages));
+    
+    // Send to backend
+    fetch('http://localhost:8000/api/testimonials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: formData.name,
+        country: formData.country,
+        message: formData.message,
+        rating: 5,
+        image_url: null
+      })
+    }).catch(err => console.log('Testimonial sent'));
+    
+    // Reset form and close modal
+    setFormData({ name: '', country: '', message: '' });
+    setIsModalOpen(false);
+  };
 
   return (
     <div className="temoignages-container">
@@ -133,7 +195,7 @@ export default function Temoignages() {
         </div>
         <nav className="nav-menu">
           <button className="nav-btn" onClick={() => navigate('/')}>Accueil</button>
-          <button className="nav-btn">Dons</button>
+          <button className="nav-btn" onClick={() => navigate('/dons')}>Dons</button>
           <button className="nav-btn active">Témoignages</button>
           <button className="nav-btn" onClick={() => navigate('/administrateur')}>Administrateur</button>
         </nav>

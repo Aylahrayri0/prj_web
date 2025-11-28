@@ -5,7 +5,9 @@ import React from "react";
 export default function Administrateur() {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+  const [email, setEmail] = React.useState("");
   const [adminCode, setAdminCode] = React.useState("");
+  const [adminName, setAdminName] = React.useState("");
   const [loginError, setLoginError] = React.useState("");
   const [activeTab, setActiveTab] = React.useState("dashboard");
 
@@ -27,24 +29,92 @@ export default function Administrateur() {
   ]);
 
   // Dashboard statistics
-  const statistics = {
+  const [statistics, setStatistics] = React.useState({
     donationsToday: 5,
     donationsWeek: 28,
     donationsMonth: 125,
     totalAmount: 12500,
-    messagesReceived: 542,
+    messagesReceived: 4,
     visitors: 8934,
-  };
+  });
+
+  // Update message counter from localStorage when component loads
+  React.useEffect(() => {
+    const newMessagesCount = parseInt(localStorage.getItem('newMessagesCount') || '0');
+    const newMessagesData = JSON.parse(localStorage.getItem('newMessages') || '[]');
+    
+    setStatistics(prev => ({
+      ...prev,
+      messagesReceived: 4 + newMessagesCount
+    }));
+    
+    // Add new messages from localStorage to the messages list
+    if (newMessagesData.length > 0) {
+      setMessages(prev => {
+        const existingIds = new Set(prev.map(m => m.id));
+        const newMsgs = newMessagesData.filter(m => !existingIds.has(m.id));
+        return [...newMsgs, ...prev];
+      });
+    }
+
+    // Fetch all testimonials from backend API
+    fetch('http://localhost:8000/api/testimonials')
+      .then(res => res.json())
+      .then(data => {
+        if (data.data && Array.isArray(data.data)) {
+          const backendMessages = data.data.map(testimonial => ({
+            id: testimonial.id,
+            name: testimonial.name,
+            country: testimonial.email || testimonial.country,
+            message: testimonial.message || testimonial.content,
+            date: testimonial.created_at ? testimonial.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+            status: testimonial.approved ? "Approuvé" : "En attente",
+            isPinned: false
+          }));
+          setMessages(backendMessages);
+          setStatistics(prev => ({
+            ...prev,
+            messagesReceived: backendMessages.length
+          }));
+        }
+      })
+      .catch(err => console.log('Error fetching testimonials:', err));
+  }, []);
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (adminCode === "ADMIN2024") {
-      setIsLoggedIn(true);
-      setLoginError("");
-      setAdminCode("");
-    } else {
-      setLoginError("Code administrateur incorrect. Veuillez réessayer.");
+    
+    // Validate email
+    if (email !== "marialmoudn2005@gmail.com") {
+      setLoginError("Email incorrect. Vous n'êtes pas un administrateur.");
+      return;
     }
+    
+    // Validate admin code
+    if (adminCode !== "maryamaya") {
+      setLoginError("Code administrateur incorrect. Veuillez réessayer.");
+      return;
+    }
+    
+    // Validate admin name
+    if (adminName !== "maryam" && adminName !== "aya") {
+      setLoginError("Nom d'administrateur incorrect. Veuillez entrer 'maryam' ou 'aya'.");
+      return;
+    }
+    
+    // Login successful
+    setIsLoggedIn(true);
+    setLoginError("");
+    setEmail("");
+    setAdminCode("");
+    setAdminName("");
+    
+    // Send email notification
+    fetch('http://localhost:8000/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, adminName })
+    }).catch(err => console.log('Email notification sent'));
   };
 
   const handleLogout = () => {
@@ -61,16 +131,42 @@ export default function Administrateur() {
 
   const deleteMessage = (id) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer ce message ?")) {
-      setMessages(messages.filter(m => m.id !== id));
+      // Delete from backend
+      fetch(`http://localhost:8000/api/testimonials/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(() => {
+        setMessages(messages.filter(m => m.id !== id));
+      })
+      .catch(err => console.log('Error deleting message:', err));
     }
   };
 
   const approveMessage = (id) => {
-    setMessages(messages.map(m => m.id === id ? { ...m, status: "Approuvé" } : m));
+    // Send approval to backend
+    fetch(`http://localhost:8000/api/testimonials/${id}/approve`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+      setMessages(messages.map(m => m.id === id ? { ...m, status: "Approuvé" } : m));
+    })
+    .catch(err => console.log('Error approving message:', err));
   };
 
   const rejectMessage = (id) => {
-    setMessages(messages.map(m => m.id === id ? { ...m, status: "Rejeté" } : m));
+    // Send rejection to backend
+    fetch(`http://localhost:8000/api/testimonials/${id}/reject`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+      setMessages(messages.map(m => m.id === id ? { ...m, status: "Rejeté" } : m));
+    })
+    .catch(err => console.log('Error rejecting message:', err));
   };
 
   const togglePin = (id) => {
@@ -89,7 +185,7 @@ export default function Administrateur() {
           </div>
           <nav className="nav-menu">
             <button className="nav-btn" onClick={() => navigate('/')}>Accueil</button>
-            <button className="nav-btn">Dons</button>
+            <button className="nav-btn" onClick={() => navigate('/dons')}>Dons</button>
             <button className="nav-btn" onClick={() => navigate('/temoignages')}>Témoignages</button>
             <button className="nav-btn active">Administrateur</button>
           </nav>
@@ -102,6 +198,32 @@ export default function Administrateur() {
             
             <form onSubmit={handleLogin} className="login-form">
               <div className="form-group">
+                <label htmlFor="email">Email Administrateur</label>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Entrez votre email"
+                  className="login-input"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="adminName">Nom d'Administrateur</label>
+                <input
+                  type="text"
+                  id="adminName"
+                  value={adminName}
+                  placeholder="Entrez nom d'administrateur"
+                  onChange={(e) => setAdminName(e.target.value.toLowerCase())}
+                  className="login-input"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
                 <label htmlFor="code">Code Administrateur</label>
                 <input
                   type="password"
@@ -110,6 +232,7 @@ export default function Administrateur() {
                   onChange={(e) => setAdminCode(e.target.value)}
                   placeholder="Entrez le code administrateur"
                   className="login-input"
+                  required
                 />
               </div>
               
@@ -117,8 +240,6 @@ export default function Administrateur() {
               
               <button type="submit" className="login-btn">Se Connecter</button>
             </form>
-
-            <p className="login-help">Code: ADMIN2024</p>
           </div>
         </div>
       </div>
@@ -137,7 +258,7 @@ export default function Administrateur() {
         </div>
         <nav className="nav-menu">
           <button className="nav-btn" onClick={() => navigate('/')}>Accueil</button>
-          <button className="nav-btn">Dons</button>
+          <button className="nav-btn" onClick={() => navigate('/dons')}>Dons</button>
           <button className="nav-btn" onClick={() => navigate('/temoignages')}>Témoignages</button>
           <button className="nav-btn active">Administrateur</button>
         </nav>

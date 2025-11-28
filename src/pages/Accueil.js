@@ -2,12 +2,9 @@
 import "./Accueil.css";
 import { useNavigate } from "react-router-dom";
 
+// Home page component with hero section and article listings
 export default function Accueil({ isLoggedIn, setIsLoggedIn }) {
   const navigate = useNavigate();
-  
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   const handleLogout = () => {
     localStorage.removeItem("loggedIn");
@@ -45,8 +42,8 @@ export default function Accueil({ isLoggedIn, setIsLoggedIn }) {
         </div>
         <nav className="nav-menu">
           <button className="nav-btn active" onClick={() => navigate('/')}>Accueil</button>
+          <button className="nav-btn" onClick={() => navigate('/dons')}>Dons</button>
           <button className="nav-btn" onClick={() => navigate('/temoignages')}>Témoignages</button>
-          <button className="nav-btn" onClick={handleDonClick}>Dons</button>
           <button className="nav-btn" onClick={() => navigate('/administrateur')}>Administrateur</button>
           {isLoggedIn && (
             <button className="nav-btn logout-btn" onClick={handleLogout}>Déconnexion</button>
@@ -86,7 +83,7 @@ export default function Accueil({ isLoggedIn, setIsLoggedIn }) {
                 <button className="read-more-btn">Lire la suite →</button>
               </div>
             </div>
-            <button className="en-savoir-plus" onClick={scrollToTop}>En savoir plus</button>
+            <button className="en-savoir-plus" onClick={() => navigate('/temoignages')}>En savoir plus</button>
           </div>
 
           <div className="temoignages-wrapper">
@@ -125,7 +122,7 @@ export default function Accueil({ isLoggedIn, setIsLoggedIn }) {
                 </div>
               </div>
             </div>
-            <button className="en-savoir-plus" onClick={scrollToTop}>En savoir plus</button>
+            <button className="en-savoir-plus" onClick={() => navigate('/temoignages')}>En savoir plus</button>
           </div>
         </div>
 
