@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { verifyLogin } from '../utils/authDb';
+import { donationAPI, donationCategoryAPI } from '../utils/api';
 import "./Dons.css";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -20,14 +21,36 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
   const [loginErrMsg, setLoginErrMsg] = useState('');
 
   // Donation states
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedAmount, setSelectedAmount] = useState(null);
   const [customAmount, setCustomAmount] = useState('');
+  const [donorName, setDonorName] = useState('');
+  const [donorEmail, setDonorEmail] = useState('');
+  const [message, setMessage] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [cardName, setCardName] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [cvv, setCvv] = useState('');
   const [errMsg, setErrMsg] = useState('');
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch donation categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const data = await donationCategoryAPI.getAll();
+        setCategories(data);
+        if (data.length > 0) {
+          setSelectedCategory(data[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to load categories:', err);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     setLoginErrMsg('');
@@ -105,26 +128,62 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
       return;
     }
 
+    if (!selectedCategory) {
+      setErrMsg('Veuillez sélectionner une catégorie');
+      errRef.current?.focus();
+      return;
+    }
+
+    if (!donorName || !donorEmail) {
+      setErrMsg('Veuillez entrer votre nom et email');
+      errRef.current?.focus();
+      return;
+    }
+
     if (!cardNumber || !cardName || !expiryDate || !cvv) {
       setErrMsg('Veuillez remplir tous les champs de paiement');
       errRef.current?.focus();
       return;
     }
 
+    setLoading(true);
     try {
-      console.log({
-        montant: finalAmount,
-        carte: cardNumber,
-        nom: cardName,
-        expiration: expiryDate,
-        cvv: cvv
-      });
-      // Store the amount and show success on this page
+      // Create donation in backend
+      const donationData = {
+        category_id: parseInt(selectedCategory),
+        amount: parseFloat(finalAmount),
+        donor_name: donorName,
+        donor_email: donorEmail,
+        message: message || null,
+        status: 'completed'
+      };
+
+      const response = await donationAPI.create(donationData);
+      
+      console.log('Donation created:', response);
       sessionStorage.setItem('donationAmount', finalAmount);
       setSuccess(true);
+
+      // Reset form
+      setTimeout(() => {
+        setSelectedAmount(null);
+        setCustomAmount('');
+        setDonorName('');
+        setDonorEmail('');
+        setMessage('');
+        setCardNumber('');
+        setCardName('');
+        setExpiryDate('');
+        setCvv('');
+        setSuccess(false);
+        sessionStorage.removeItem('donationAmount');
+      }, 5000);
+
     } catch (err) {
-      setErrMsg('Erreur lors du traitement du don');
+      setErrMsg('Erreur lors du traitement du don: ' + err.message);
       errRef.current?.focus();
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -427,6 +486,56 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
 
             <form onSubmit={handleSubmit} className="donation-form">
               <div className="form-section">
+                <h2>Sélectionnez une catégorie</h2>
+                <select 
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  required
+                  style={{ marginBottom: '20px', padding: '10px', fontSize: '14px' }}
+                >
+                  <option value="">Choisir une catégorie</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name} {cat.description ? `- ${cat.description}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-section">
+                <h2>Vos informations</h2>
+
+                <label htmlFor="donorName">Nom complet</label>
+                <input
+                  type="text"
+                  id="donorName"
+                  placeholder="Votre nom complet"
+                  value={donorName}
+                  onChange={(e) => setDonorName(e.target.value)}
+                  required
+                />
+
+                <label htmlFor="donorEmail">Email</label>
+                <input
+                  type="email"
+                  id="donorEmail"
+                  placeholder="votre@email.com"
+                  value={donorEmail}
+                  onChange={(e) => setDonorEmail(e.target.value)}
+                  required
+                />
+
+                <label htmlFor="message">Message (Optionnel)</label>
+                <textarea
+                  id="message"
+                  placeholder="Partagez votre message..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  rows="3"
+                ></textarea>
+              </div>
+
+              <div className="form-section">
                 <h2>Informations de paiement</h2>
 
                 <label htmlFor="cardNumber">Numéro de carte</label>
@@ -479,8 +588,8 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
                 </div>
               </div>
 
-              <button type="submit" className="submit-btn">
-                Confirmer le don de {selectedAmount || customAmount || '0'}€
+              <button type="submit" className="submit-btn" disabled={loading}>
+                {loading ? 'Traitement...' : `Confirmer le don de ${selectedAmount || customAmount || '0'}€`}
               </button>
 
               <p className="security-info">
