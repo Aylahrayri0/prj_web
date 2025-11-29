@@ -1,10 +1,12 @@
 // accueil.js
 import "./Accueil.css";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 // Home page component with hero section and article listings
 export default function Accueil({ isLoggedIn, setIsLoggedIn }) {
   const navigate = useNavigate();
+  const [showArticles, setShowArticles] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem("loggedIn");
@@ -24,21 +26,11 @@ export default function Accueil({ isLoggedIn, setIsLoggedIn }) {
     <div className="container">
       {/* Navigation Header */}
       <header className="header">
-        <div className="header-left" style={{ paddingLeft: '40px' }}>
-          <div className="flag-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <img 
-              src="/d5246caa268f230b17f5803d45ede1e6.jpg" 
-              alt="Palestine Flag" 
-              style={{
-                width: '45px',
-                height: '30px',
-                borderRadius: '4px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                objectFit: 'cover'
-              }}
-            />
-            <span className="logo-text" style={{ fontSize: '24px', fontWeight: '700', color: '#333' }}>GAZA</span>
+        <div className="header-left">
+          <div className="flag-logo">
+            <img src="d5246caa268f230b17f5803d45ede1e6.jpg" alt="Palestine" className="palestine-logo" />
           </div>
+          <span className="logo-text">GAZA</span>
         </div>
         <nav className="nav-menu">
           <button className="nav-btn active" onClick={() => navigate('/')}>Accueil</button>
@@ -83,7 +75,9 @@ export default function Accueil({ isLoggedIn, setIsLoggedIn }) {
                 <button className="read-more-btn">Lire la suite →</button>
               </div>
             </div>
-            <button className="en-savoir-plus" onClick={() => navigate('/temoignages')}>En savoir plus</button>
+            <button className="en-savoir-plus" onClick={() => setShowArticles(!showArticles)}>
+              {showArticles ? 'Masquer les articles' : 'En savoir plus'}
+            </button>
           </div>
 
           <div className="temoignages-wrapper">
@@ -128,6 +122,83 @@ export default function Accueil({ isLoggedIn, setIsLoggedIn }) {
 
         <div className="buttons-container">
         </div>
+
+        {/* Expanded Articles List */}
+        {showArticles && (
+          <div className="expanded-articles">
+            <div className="article-card">
+              <img src="/gaza-bg.jpg" alt="Lancement de la campagne de reconstruction" />
+              <div className="article-content">
+                <span className="article-date">📅 2024-11-15</span>
+                <h3>Lancement de la campagne de reconstruction</h3>
+                <p>
+                  Une nouvelle initiative visant à reconstruire 500 maisons pour les familles déplacées a été lancée cette semaine.
+                </p>
+                <button className="article-read-more">Lire la suite →</button>
+              </div>
+            </div>
+
+            <div className="article-card">
+              <img src="/gaza-bg.jpg" alt="Distribution de kits alimentaires" />
+              <div className="article-content">
+                <span className="article-date">📅 2024-11-12</span>
+                <h3>Distribution de kits alimentaires</h3>
+                <p>
+                  Plus de 1000 familles ont reçu des kits alimentaires essentiels grâce à la générosité de nos donateurs.
+                </p>
+                <button className="article-read-more">Lire la suite →</button>
+              </div>
+            </div>
+
+            <div className="article-card">
+              <img src="/gaza-bg.jpg" alt="Ouverture d'un centre médical temporaire" />
+              <div className="article-content">
+                <span className="article-date">📅 2024-11-10</span>
+                <h3>Ouverture d'un centre médical temporaire</h3>
+                <p>
+                  Un nouveau centre médical a ouvert ses portes pour fournir des soins essentiels aux personnes dans le besoin.
+                </p>
+                <button className="article-read-more">Lire la suite →</button>
+              </div>
+            </div>
+
+            <div className="article-card">
+              <img src="/gaza-bg.jpg" alt="Programme éducatif pour enfants" />
+              <div className="article-content">
+                <span className="article-date">📅 2024-11-08</span>
+                <h3>Programme éducatif pour enfants</h3>
+                <p>
+                  Lancement d'un nouveau programme permettant à 500 enfants de continuer leur éducation malgré les difficultés.
+                </p>
+                <button className="article-read-more">Lire la suite →</button>
+              </div>
+            </div>
+
+            <div className="article-card">
+              <img src="/gaza-bg.jpg" alt="Distribution d'eau potable" />
+              <div className="article-content">
+                <span className="article-date">📅 2024-11-05</span>
+                <h3>Distribution d'eau potable</h3>
+                <p>
+                  Installation de points d'eau potable dans plusieurs quartiers, bénéficiant à plus de 2000 personnes quotidiennement.
+                </p>
+                <button className="article-read-more">Lire la suite →</button>
+              </div>
+            </div>
+
+            <div className="article-card">
+              <img src="/gaza-bg.jpg" alt="Aide d'urgence hivernale" />
+              <div className="article-content">
+                <span className="article-date">📅 2024-11-02</span>
+                <h3>Aide d'urgence hivernale</h3>
+                <p>
+                  Distribution de couvertures, vêtements chauds et chauffages d'appoint pour aider les familles à affronter l'hiver.
+                </p>
+                <button className="article-read-more">Lire la suite →</button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Impact Section */}
@@ -140,7 +211,7 @@ export default function Accueil({ isLoggedIn, setIsLoggedIn }) {
           {/* Impact Item 1 */}
           <div className="impact-item">
             <div className="impact-image">
-              <img src="a7d153ee15c2afe5515e4cb0f11b08ba.jpg" alt="Aide alimentaire" />
+              <img src="WhatsApp Image 2025-11-24 à 00.15.35_808e8abd.jpg" alt="Aide alimentaire" />
             </div>
             <div className="impact-content">
               <div className="impact-icon">❤️</div>
@@ -156,7 +227,7 @@ export default function Accueil({ isLoggedIn, setIsLoggedIn }) {
           {/* Impact Item 2 */}
           <div className="impact-item reverse">
             <div className="impact-image">
-              <img src="8af264c3a1fba39764d8f4dc9741667f.jpg" alt="Secours et sauvetage" />
+              <img src="pic4.jpeg" alt="Secours et sauvetage" />
             </div>
             <div className="impact-content">
               <div className="impact-icon">❤️</div>
@@ -172,7 +243,7 @@ export default function Accueil({ isLoggedIn, setIsLoggedIn }) {
           {/* Impact Item 3 */}
           <div className="impact-item">
             <div className="impact-image">
-              <img src="https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=500&h=400&fit=crop" alt="Reconstruction" />
+              <img src="6.jpeg" alt="Reconstruction" />
             </div>
             <div className="impact-content">
               <div className="impact-icon">❤️</div>

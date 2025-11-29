@@ -1,6 +1,7 @@
 import "./Administrateur.css";
 import { useNavigate } from "react-router-dom";
 import React from "react";
+import { adminTestimonialAPI } from '../utils/api';
 
 export default function Administrateur() {
   const navigate = useNavigate();
@@ -21,12 +22,8 @@ export default function Administrateur() {
   ]);
 
   // Sample messages data
-  const [messages, setMessages] = React.useState([
-    { id: 1, name: "Sarah M.", country: "France", message: "Solidarité totale avec Gaza...", date: "2024-11-15", status: "En attente", isPinned: false },
-    { id: 2, name: "Ahmed K.", country: "Maroc", message: "قلبي مع غزة. كل يوم أدعو...", date: "2024-11-14", status: "Approuvé", isPinned: true },
-    { id: 3, name: "Maria G.", country: "España", message: "Gaza libre, Gaza de pie...", date: "2024-11-13", status: "Approuvé", isPinned: false },
-    { id: 4, name: "John P.", country: "USA", message: "Unconditional support for Gaza...", date: "2024-11-12", status: "En attente", isPinned: false },
-  ]);
+  const [messages, setMessages] = React.useState([]);
+  const [loadingMessages, setLoadingMessages] = React.useState(true);
 
   // Dashboard statistics
   const [statistics, setStatistics] = React.useState({
@@ -38,47 +35,39 @@ export default function Administrateur() {
     visitors: 8934,
   });
 
-  // Update message counter from localStorage when component loads
+  // Fetch testimonials from backend when component loads or when logged in
   React.useEffect(() => {
-    const newMessagesCount = parseInt(localStorage.getItem('newMessagesCount') || '0');
-    const newMessagesData = JSON.parse(localStorage.getItem('newMessages') || '[]');
-    
-    setStatistics(prev => ({
-      ...prev,
-      messagesReceived: 4 + newMessagesCount
-    }));
-    
-    // Add new messages from localStorage to the messages list
-    if (newMessagesData.length > 0) {
-      setMessages(prev => {
-        const existingIds = new Set(prev.map(m => m.id));
-        const newMsgs = newMessagesData.filter(m => !existingIds.has(m.id));
-        return [...newMsgs, ...prev];
-      });
-    }
-
-    // Fetch all testimonials from backend API
-    fetch('http://localhost:8000/api/testimonials')
-      .then(res => res.json())
-      .then(data => {
-        if (data.data && Array.isArray(data.data)) {
-          const backendMessages = data.data.map(testimonial => ({
+    const fetchTestimonials = async () => {
+      try {
+        setLoadingMessages(true);
+        // Fetch all testimonials from admin endpoint
+        const response = await adminTestimonialAPI.getAll();
+        console.log('Admin testimonials response:', response);
+        
+        if (response.data) {
+          const formattedMessages = response.data.map(testimonial => ({
             id: testimonial.id,
             name: testimonial.name,
-            country: testimonial.email || testimonial.country,
-            message: testimonial.message || testimonial.content,
-            date: testimonial.created_at ? testimonial.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-            status: testimonial.approved ? "Approuvé" : "En attente",
+            country: testimonial.country || testimonial.email || 'Unknown',
+            message: testimonial.content,
+            date: testimonial.created_at ? testimonial.created_at.split(' ')[0] : new Date().toISOString().split('T')[0],
+            status: testimonial.approved == 1 ? "Approuvé" : "En attente",
             isPinned: false
           }));
-          setMessages(backendMessages);
+          setMessages(formattedMessages);
           setStatistics(prev => ({
             ...prev,
-            messagesReceived: backendMessages.length
+            messagesReceived: formattedMessages.length
           }));
         }
-      })
-      .catch(err => console.log('Error fetching testimonials:', err));
+      } catch (err) {
+        console.error('Error fetching testimonials:', err);
+      } finally {
+        setLoadingMessages(false);
+      }
+    };
+
+    fetchTestimonials();
   }, []);
 
   const handleLogin = (e) => {
@@ -129,44 +118,40 @@ export default function Administrateur() {
     }
   };
 
-  const deleteMessage = (id) => {
+  const deleteMessage = async (id) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer ce message ?")) {
-      // Delete from backend
-      fetch(`http://localhost:8000/api/testimonials/${id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
-      })
-      .then(() => {
+      try {
+        await adminTestimonialAPI.delete(id);
         setMessages(messages.filter(m => m.id !== id));
-      })
-      .catch(err => console.log('Error deleting message:', err));
+        setStatistics(prev => ({
+          ...prev,
+          messagesReceived: prev.messagesReceived - 1
+        }));
+      } catch (err) {
+        console.error('Error deleting message:', err);
+        alert('Erreur lors de la suppression du message');
+      }
     }
   };
 
-  const approveMessage = (id) => {
-    // Send approval to backend
-    fetch(`http://localhost:8000/api/testimonials/${id}/approve`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' }
-    })
-    .then(res => res.json())
-    .then(data => {
+  const approveMessage = async (id) => {
+    try {
+      await adminTestimonialAPI.approve(id);
       setMessages(messages.map(m => m.id === id ? { ...m, status: "Approuvé" } : m));
-    })
-    .catch(err => console.log('Error approving message:', err));
+    } catch (err) {
+      console.error('Error approving message:', err);
+      alert('Erreur lors de l\'approbation du message');
+    }
   };
 
-  const rejectMessage = (id) => {
-    // Send rejection to backend
-    fetch(`http://localhost:8000/api/testimonials/${id}/reject`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' }
-    })
-    .then(res => res.json())
-    .then(data => {
+  const rejectMessage = async (id) => {
+    try {
+      await adminTestimonialAPI.reject(id);
       setMessages(messages.map(m => m.id === id ? { ...m, status: "Rejeté" } : m));
-    })
-    .catch(err => console.log('Error rejecting message:', err));
+    } catch (err) {
+      console.error('Error rejecting message:', err);
+      alert('Erreur lors du rejet du message');
+    }
   };
 
   const togglePin = (id) => {
@@ -439,44 +424,55 @@ export default function Administrateur() {
                 <span className="badge">{messages.length} messages</span>
               </div>
 
-              <div className="messages-grid">
-                {messages.map(msg => (
-                  <div key={msg.id} className={`message-card ${msg.status.toLowerCase()}`}>
-                    <div className="message-header">
-                      <div className="message-info">
-                        <h4>{msg.name}</h4>
-                        <span className="country">{msg.country}</span>
+              {loadingMessages ? (
+                <div className="loading-message" style={{textAlign: 'center', padding: '40px', color: '#666'}}>
+                  <p>⏳ Chargement des messages...</p>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="no-messages" style={{textAlign: 'center', padding: '40px', color: '#666'}}>
+                  <p>📭 Aucun message pour le moment.</p>
+                  <p style={{fontSize: '14px', marginTop: '10px'}}>Les messages envoyés par les visiteurs apparaîtront ici.</p>
+                </div>
+              ) : (
+                <div className="messages-grid">
+                  {messages.map(msg => (
+                    <div key={msg.id} className={`message-card ${msg.status.toLowerCase().replace(' ', '-')}`}>
+                      <div className="message-header">
+                        <div className="message-info">
+                          <h4>{msg.name}</h4>
+                          <span className="country">{msg.country}</span>
+                        </div>
+                        <div className="message-actions">
+                          <button 
+                            className={`pin-btn ${msg.isPinned ? 'pinned' : ''}`}
+                            onClick={() => togglePin(msg.id)}
+                            title={msg.isPinned ? "Désépingler" : "Épingler"}
+                          >
+                            📌
+                          </button>
+                        </div>
                       </div>
-                      <div className="message-actions">
-                        <button 
-                          className={`pin-btn ${msg.isPinned ? 'pinned' : ''}`}
-                          onClick={() => togglePin(msg.id)}
-                          title={msg.isPinned ? "Désépingler" : "Épingler"}
-                        >
-                          📌
-                        </button>
+
+                      <p className="message-text">"{msg.message}"</p>
+
+                      <div className="message-date">{msg.date}</div>
+
+                      <div className="message-footer">
+                        <span className={`status-badge ${msg.status.toLowerCase().replace(' ', '-')}`}>{msg.status}</span>
+                        <div className="message-buttons">
+                          {msg.status !== 'Approuvé' && (
+                            <button className="approve-btn" onClick={() => approveMessage(msg.id)}>✓ Approuver</button>
+                          )}
+                          {msg.status !== 'Rejeté' && (
+                            <button className="reject-btn" onClick={() => rejectMessage(msg.id)}>✗ Rejeter</button>
+                          )}
+                          <button className="delete-btn" onClick={() => deleteMessage(msg.id)}>🗑️ Supprimer</button>
+                        </div>
                       </div>
                     </div>
-
-                    <p className="message-text">"{msg.message}"</p>
-
-                    <div className="message-date">{msg.date}</div>
-
-                    <div className="message-footer">
-                      <span className={`status-badge ${msg.status.toLowerCase()}`}>{msg.status}</span>
-                      <div className="message-buttons">
-                        {msg.status !== 'Approuvé' && (
-                          <button className="approve-btn" onClick={() => approveMessage(msg.id)}>✓ Approuver</button>
-                        )}
-                        {msg.status !== 'Rejeté' && (
-                          <button className="reject-btn" onClick={() => rejectMessage(msg.id)}>✗ Rejeter</button>
-                        )}
-                        <button className="delete-btn" onClick={() => deleteMessage(msg.id)}>🗑️ Supprimer</button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </section>
           )}
         </main>

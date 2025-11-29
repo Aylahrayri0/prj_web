@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { emailExists as checkEmailExists, registerUser } from '../utils/authDb';
+import { emailExists as checkEmailExists, registerUser } from "../utils/authDb";
+import MainHeader from "../components/MainHeader";
 import "./Inscription.css";
 
 const USER_REGEX = /^[a-zA-Z][a-zA-Z0-9-_]{3,23}$/;
@@ -118,43 +119,9 @@ const Inscription = () => {
 
   return (
     <>
-      {/* Green Top Bar */}
-      <div style={{
-        width: '100%',
-        height: '8px',
-        background: 'linear-gradient(90deg, #4caf50 0%, #45a049 100%)',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        zIndex: 1000
-      }}></div>
+      <MainHeader activeKey="dons" />
 
-      {/* Navigation Header */}
-      <header className="header" style={{ marginTop: '8px' }}>
-        <div className="header-left" style={{ paddingLeft: '40px' }}>
-          <div className="flag-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <img 
-              src="/d5246caa268f230b17f5803d45ede1e6.jpg" 
-              alt="Palestine Flag" 
-              style={{
-                width: '45px',
-                height: '30px',
-                borderRadius: '4px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                objectFit: 'cover'
-              }}
-            />
-            <span className="logo-text" style={{ fontSize: '24px', fontWeight: '700', color: '#333' }}>GAZA</span>
-          </div>
-        </div>
-        <nav className="nav-menu">
-          <button className="nav-btn" onClick={() => navigate('/accueil')}>Accueil</button>
-          <button className="nav-btn">Témoignages</button>
-          <button className="nav-btn" onClick={() => navigate('/dons')}>Dons</button>
-          <button className="nav-btn">Administarateur</button>
-        </nav>
-      </header>
-
+      <div style={{ paddingTop: '75px' }}>
       {success ? (
         <section className="inscription-success">
           <div className="success-container">
@@ -345,6 +312,7 @@ const Inscription = () => {
           </section>
         </>
       )}
+      </div>
     </>
   );
 };

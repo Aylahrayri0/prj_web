@@ -13,18 +13,22 @@ class TestimonialController extends Controller
      */
     public function index(): JsonResponse
     {
-        $testimonials = Testimonial::all()->map(function($testimonial) {
-            return [
-                'id' => $testimonial->id,
-                'name' => $testimonial->name,
-                'country' => $testimonial->email,
-                'message' => $testimonial->content,
-                'rating' => $testimonial->rating,
-                'image_url' => $testimonial->image_url,
-                'approved' => $testimonial->approved,
-                'created_at' => $testimonial->created_at,
-            ];
-        });
+        // Only return approved testimonials for public view
+        $testimonials = Testimonial::where('approved', true)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($testimonial) {
+                return [
+                    'id' => $testimonial->id,
+                    'name' => $testimonial->name,
+                    'country' => $testimonial->country ?? $testimonial->email,
+                    'message' => $testimonial->content,
+                    'rating' => $testimonial->rating,
+                    'image_url' => $testimonial->image_url,
+                    'approved' => $testimonial->approved,
+                    'created_at' => $testimonial->created_at,
+                ];
+            });
         
         return response()->json(['data' => $testimonials]);
     }
@@ -42,17 +46,21 @@ class TestimonialController extends Controller
             'image_url' => 'nullable|string',
         ]);
 
-        // Map frontend field names to database columns
+        // Create testimonial with pending approval status
         $testimonial = Testimonial::create([
             'name' => $validated['name'],
-            'email' => $validated['country'] ?? 'anonymous@example.com',
+            'country' => $validated['country'],
+            'email' => $validated['country'] . '@example.com', // Generate email from country for backwards compatibility
             'content' => $validated['message'],
             'rating' => $validated['rating'] ?? 5,
             'image_url' => $validated['image_url'] ?? null,
-            'approved' => false,
+            'approved' => false, // All new testimonials require admin approval
         ]);
         
-        return response()->json($testimonial, 201);
+        return response()->json([
+            'message' => 'Testimonial submitted successfully and is pending approval',
+            'data' => $testimonial
+        ], 201);
     }
 
     /**

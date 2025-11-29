@@ -6,20 +6,21 @@
   min-height: 100vh;
   background-color: #ffffff;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding-top: 75px;
 }
 
 /* Header */
 .header {
+  position: fixed;
+  top: 0;
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 20px 40px;
-  background: linear-gradient(90deg, #22c55e 0%, #ef4444 100%);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  position: fixed;
-  top: 0;
-  width: 100%;
+  background: linear-gradient(135deg, #1aa655 0%, #66d98f 20%, #ffffff 50%, #ffb3b3 80%, #ee2e24 100%);
   z-index: 1000;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
   height: 75px;
 }
 
@@ -30,51 +31,58 @@
 }
 
 .flag-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  overflow: hidden;
+  width: 50px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .palestine-logo {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: 50px;
+  height: 35px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.25));
 }
 
 .logo-text {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: bold;
-  color: white;
+  color: #000000;
   letter-spacing: 2px;
 }
 
 .nav-menu {
   display: flex;
-  gap: 30px;
-  align-items: center;
+  gap: 15px;
+  list-style: none;
+  background: white;
+  padding: 12px 30px;
+  border-radius: 50px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .nav-btn {
-  background: white;
-  color: #333;
+  background: transparent;
   border: none;
-  padding: 10px 20px;
+  padding: 10px 25px;
   border-radius: 25px;
   cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s ease;
   font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  transition: all 0.3s ease;
 }
 
 .nav-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: #f0f0f0;
+  color: #4caf50;
 }
 
 .nav-btn.active {
-  background: #22c55e;
+  background: #1aa655;
   color: white;
+  box-shadow: 0 4px 12px rgba(26, 166, 85, 0.3);
 }
 
 /* Temoignages Section */
@@ -595,4 +603,44 @@
 
 .submit-form-btn:active {
   transform: translateY(0);
+}
+
+/* Success Message */
+.success-message {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.success-icon {
+  width: 80px;
+  height: 80px;
+  background: #22c55e;
+  color: white;
+  font-size: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  animation: scaleIn 0.5s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.success-message h3 {
+  color: #22c55e;
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.success-message p {
+  color: #666;
+  font-size: 16px;
 }

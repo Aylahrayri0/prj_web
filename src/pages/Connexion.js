@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { verifyLogin } from '../utils/authDb';
+import { verifyLogin } from "../utils/authDb";
+import MainHeader from "../components/MainHeader";
 import "./Connexion.css";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -68,28 +69,9 @@ const Connexion = ({ setIsLoggedIn }) => {
 
   return (
     <>
-      {/* Navigation Header */}
-      <header className="header">
-        <div className="header-left">
-          <div className="flag-logo">
-            <svg viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg">
-              <rect width="900" height="600" fill="white"/>
-              <rect width="900" height="200" fill="#CE1126"/>
-              <rect y="200" width="900" height="200" fill="white"/>
-              <rect y="400" width="900" height="200" fill="#007A5E"/>
-              <polygon points="0,0 200,300 0,600" fill="black"/>
-            </svg>
-          </div>
-          <span className="logo-text">GAZA</span>
-        </div>
-        <nav className="nav-menu">
-          <button className="nav-btn" onClick={() => navigate('/accueil')}>Accueil</button>
-          <button className="nav-btn">Témoignages</button>
-          <button className="nav-btn" onClick={() => navigate('/dons')}>Dons</button>
-          <button className="nav-btn">Administarateur</button>
-        </nav>
-      </header>
+      <MainHeader activeKey="dons" />
 
+      <div style={{ paddingTop: '75px' }}>
       {success ? (
         <section className="connexion-success">
           <div className="success-container">
@@ -175,6 +157,7 @@ const Connexion = ({ setIsLoggedIn }) => {
           </div>
         </section>
       )}
+      </div>
     </>
   );
 };

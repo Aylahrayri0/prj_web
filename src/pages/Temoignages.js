@@ -1,125 +1,52 @@
 import "./Temoignages.css";
 import { useNavigate } from "react-router-dom";
 import React from "react";
+import { testimonialAPI } from '../utils/api';
 
 // Testimonials page component with message submission functionality
 export default function Temoignages() {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [testimonials, setTestimonials] = React.useState([
-    {
-      id: 1,
-      name: "Sarah M.",
-      country: "France",
-      date: "2024-11-15",
-      message: "Solidarité totale avec le peuple de Gaza. Leur résilience est une inspiration pour le monde entier. Nous ne vous oublions pas.",
-      color: "red"
-    },
-    {
-      id: 2,
-      name: "Ahmed K.",
-      country: "Maroc",
-      date: "2024-11-14",
-      message: "قلبي مع غزة. كل يوم أدعو من أجل السلام وإعادة الإعمار. معاً نحن أقوى.",
-      color: "green"
-    },
-    {
-      id: 3,
-      name: "Maria G.",
-      country: "España",
-      date: "2024-11-13",
-      message: "Gaza libre, Gaza de pie. Su valentia nos inspira a todos. Sigan luchando, el mundo entero los apoya.",
-      color: "red"
-    },
-    {
-      id: 4,
-      name: "John P.",
-      country: "USA",
-      date: "2024-11-12",
-      message: "Unconditional support for Gaza. Justice will prevail. Stay strong, we stand with you.",
-      color: "green"
-    },
-    {
-      id: 5,
-      name: "Yasmine B.",
-      country: "Tunisie",
-      date: "2024-11-11",
-      message: "من كل قلبي مع غزة. لسبم وحكم في هذه المحبة.",
-      color: "red"
-    },
-    {
-      id: 6,
-      name: "Mohamed A.",
-      country: "México",
-      date: "2024-11-10",
-      message: "Gaza vivirá, Gaza vencerá. Su determinación es admirable. Que la paz regrese pronto.",
-      color: "green"
-    },
-    {
-      id: 7,
-      name: "Emma L.",
-      country: "UK",
-      date: "2024-11-09",
-      message: "My heart breaks for Gaza. Your strength and resilience inspire us all. We will never forget.",
-      color: "red"
-    },
-    {
-      id: 8,
-      name: "Fatima Z.",
-      country: "Palestine",
-      date: "2024-11-08",
-      message: "غزة الحرة. صمودكم لهما جميعاً. يحن معكم حتى النصر.",
-      color: "green"
-    },
-    {
-      id: 9,
-      name: "Carlos R.",
-      country: "Argentina",
-      date: "2024-11-07",
-      message: "Todo mi apoyo para Gaza. La justicia prevalecerá. Fuerza hermanos.",
-      color: "red"
-    },
-    {
-      id: 10,
-      name: "Aisha M.",
-      country: "Belgique",
-      date: "2024-11-06",
-      message: "La solidarité n'a pas de frontières. Gaza dans nos cœurs pour toujours.",
-      color: "green"
-    }
-  ]);
+  const [testimonials, setTestimonials] = React.useState([]);
   const [formData, setFormData] = React.useState({
     name: '',
     country: '',
     message: ''
   });
+  const [submitSuccess, setSubmitSuccess] = React.useState(false);
 
   // Load approved testimonials from backend on page load
   React.useEffect(() => {
-    fetch('http://localhost:8000/api/testimonials')
-      .then(res => res.json())
-      .then(data => {
-        if (data.data && Array.isArray(data.data)) {
-          const backendTestimonials = data.data.map(testimonial => ({
+    const fetchTestimonials = async () => {
+      try {
+        const response = await testimonialAPI.getAll();
+        if (response.data && Array.isArray(response.data)) {
+          const formattedTestimonials = response.data.map(testimonial => ({
             id: testimonial.id,
             name: testimonial.name,
-            country: testimonial.email || testimonial.country,
+            country: testimonial.country,
             date: testimonial.created_at ? testimonial.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-            message: testimonial.message || testimonial.content,
+            message: testimonial.message,
             color: Math.random() > 0.5 ? "red" : "green"
           }));
-          setTestimonials(backendTestimonials);
+          setTestimonials(formattedTestimonials);
         }
-      })
-      .catch(err => console.log('Error fetching testimonials:', err));
+      } catch (err) {
+        console.error('Error fetching testimonials:', err);
+      }
+    };
+    
+    fetchTestimonials();
   }, []);
 
   const handleOpenModal = () => {
     setIsModalOpen(true);
+    setSubmitSuccess(false);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    setSubmitSuccess(false);
   };
 
   const handleInputChange = (e) => {
@@ -130,57 +57,36 @@ export default function Temoignages() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Add new testimonial to the list with current date
-    const today = new Date().toISOString().split('T')[0];
-    const newTestimonial = {
-      id: testimonials.length + 1,
-      name: formData.name,
-      country: formData.country,
-      message: formData.message,
-      date: today,
-      color: Math.random() > 0.5 ? "red" : "green"
-    };
-    
-    // Add to testimonials list
-    setTestimonials(prev => [newTestimonial, ...prev]);
-    
-    // Increment message counter in localStorage
-    const currentCount = parseInt(localStorage.getItem('newMessagesCount') || '0');
-    localStorage.setItem('newMessagesCount', (currentCount + 1).toString());
-    
-    // Store the new message for admin panel
-    const newMessages = JSON.parse(localStorage.getItem('newMessages') || '[]');
-    const messageForAdmin = {
-      id: Math.max(...newMessages.map(m => m.id || 0), 0) + 1,
-      name: formData.name,
-      country: formData.country,
-      message: formData.message,
-      date: today,
-      status: "En attente",
-      isPinned: false
-    };
-    newMessages.push(messageForAdmin);
-    localStorage.setItem('newMessages', JSON.stringify(newMessages));
-    
-    // Send to backend
-    fetch('http://localhost:8000/api/testimonials', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    try {
+      // Submit testimonial to backend
+      const response = await testimonialAPI.create({
         name: formData.name,
         country: formData.country,
         message: formData.message,
-        rating: 5,
-        image_url: null
-      })
-    }).catch(err => console.log('Testimonial sent'));
-    
-    // Reset form and close modal
-    setFormData({ name: '', country: '', message: '' });
-    setIsModalOpen(false);
+        rating: 5
+      });
+      
+      console.log('Testimonial submitted successfully:', response);
+      
+      // Show success message
+      setSubmitSuccess(true);
+      
+      // Reset form
+      setFormData({ name: '', country: '', message: '' });
+      
+      // Close modal after 2 seconds
+      setTimeout(() => {
+        setIsModalOpen(false);
+        setSubmitSuccess(false);
+      }, 2000);
+      
+    } catch (err) {
+      console.error('Error submitting testimonial:', err);
+      alert('Erreur: Impossible de se connecter au serveur.\n\nVérifiez que:\n1. XAMPP Apache est démarré\n2. Le fichier simple-api.php existe dans gaza-support-backend\n3. La colonne "country" a été ajoutée à la table testimonials\n\nURL attendue: http://localhost/prj_web/gaza-support-backend/simple-api.php');
+    }
   };
 
   return (
@@ -237,46 +143,56 @@ export default function Temoignages() {
                 <button className="close-btn" onClick={handleCloseModal}>✕</button>
               </div>
               <form onSubmit={handleSubmit} className="modal-form">
-                <div className="form-group">
-                  <label htmlFor="name">Nom *</label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="Votre nom"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="country">Pays *</label>
-                  <input
-                    type="text"
-                    id="country"
-                    name="country"
-                    value={formData.country}
-                    onChange={handleInputChange}
-                    placeholder="Votre pays"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="message">Message de soutien *</label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    value={formData.message}
-                    onChange={handleInputChange}
-                    placeholder="Écrivez votre message de soutien..."
-                    rows="6"
-                    required
-                  />
-                </div>
-                <div className="modal-buttons">
-                  <button type="button" className="cancel-btn" onClick={handleCloseModal}>Annuler</button>
-                  <button type="submit" className="submit-form-btn">Envoyer</button>
-                </div>
+                {submitSuccess ? (
+                  <div className="success-message">
+                    <div className="success-icon">✓</div>
+                    <h3>Message envoyé avec succès!</h3>
+                    <p>Votre message sera affiché après validation par l'administrateur.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="form-group">
+                      <label htmlFor="name">Nom *</label>
+                      <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        placeholder="Votre nom"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="country">Pays *</label>
+                      <input
+                        type="text"
+                        id="country"
+                        name="country"
+                        value={formData.country}
+                        onChange={handleInputChange}
+                        placeholder="Votre pays"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="message">Message de soutien *</label>
+                      <textarea
+                        id="message"
+                        name="message"
+                        value={formData.message}
+                        onChange={handleInputChange}
+                        placeholder="Écrivez votre message de soutien..."
+                        rows="6"
+                        required
+                      />
+                    </div>
+                    <div className="modal-buttons">
+                      <button type="button" className="cancel-btn" onClick={handleCloseModal}>Annuler</button>
+                      <button type="submit" className="submit-form-btn">Envoyer</button>
+                    </div>
+                  </>
+                )}
               </form>
             </div>
           </div>

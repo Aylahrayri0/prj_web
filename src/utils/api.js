@@ -3,13 +3,13 @@
  * Handles all HTTP requests to the Laravel API
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
+const API_BASE_URL = 'http://localhost/gaza-support-backend/simple-api.php';
 
 /**
  * Generic fetch wrapper with error handling
  */
 const fetchAPI = async (endpoint, options = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
   
   const defaultOptions = {
     headers: {
@@ -24,8 +24,12 @@ const fetchAPI = async (endpoint, options = {}) => {
       ...options,
     });
 
-    if (!response.ok) {
+    if (!response.ok && response.status !== 204) {
       throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    }
+
+    if (response.status === 204) {
+      return { success: true };
     }
 
     const data = await response.json();
@@ -97,17 +101,37 @@ export const articleAPI = {
  * Testimonials API
  */
 export const testimonialAPI = {
-  getAll: () => fetchAPI('/testimonials'),
-  getById: (id) => fetchAPI(`/testimonials/${id}`),
-  create: (data) => fetchAPI('/testimonials', {
+  getAll: () => fetchAPI(''),
+  getById: (id) => fetchAPI(`/${id}`),
+  create: (data) => fetchAPI('', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  update: (id, data) => fetchAPI(`/testimonials/${id}`, {
+  update: (id, data) => fetchAPI(`/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
-  delete: (id) => fetchAPI(`/testimonials/${id}`, {
+  delete: (id) => fetchAPI(`/${id}`, {
+    method: 'DELETE',
+  }),
+};
+
+/**
+ * Admin Testimonials API (requires authentication)
+ */
+export const adminTestimonialAPI = {
+  getAll: (params = {}) => {
+    return fetchAPI('/admin/testimonials');
+  },
+  getPending: () => fetchAPI('/admin/testimonials/pending/all'),
+  getStatistics: () => fetchAPI('/admin/testimonials/stats/summary'),
+  approve: (id) => fetchAPI(`/admin/testimonials/${id}/approve`, {
+    method: 'PUT',
+  }),
+  reject: (id) => fetchAPI(`/admin/testimonials/${id}/reject`, {
+    method: 'PUT',
+  }),
+  delete: (id) => fetchAPI(`/admin/testimonials/${id}`, {
     method: 'DELETE',
   }),
 };
@@ -136,5 +160,6 @@ export default {
   donationAPI,
   articleAPI,
   testimonialAPI,
+  adminTestimonialAPI,
   impactAPI,
 };
