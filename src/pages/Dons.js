@@ -175,7 +175,7 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
         console.log('Connexion réussie:', result.user);
         localStorage.setItem("loggedIn", "true");
         setIsLoggedIn(true);
-        setShowLoginForm(false);
+        navigate('/success');
       } else {
         setLoginErrMsg(result.message);
         loginErrRef.current?.focus();
