@@ -36,7 +36,10 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($categories as $category) {
-            DonationCategory::create($category);
+            DonationCategory::firstOrCreate(
+                ['name' => $category['name']],
+                array_merge($category, ['description' => $category['description']])
+            );
         }
 
         // Create sample donations

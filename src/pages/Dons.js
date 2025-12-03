@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import MainHeader from "../components/MainHeader";
-import { verifyLogin, emailExists as checkEmailExists, registerUser } from "../utils/authDb";
+import { authAPI, donationAPI, donationCategoryAPI } from "../utils/api";
 import "./Dons.css";
 
 const USER_REGEX = /^[a-zA-Z][a-zA-Z0-9-_]{3,23}$/;
@@ -32,7 +32,6 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
   const [userFocus, setUserFocus] = useState(false);
   const [regEmail, setRegEmail] = useState('');
   const [validEmail, setValidEmail] = useState(false);
-  const [emailExists, setEmailExists] = useState(false);
   const [regPwd, setRegPwd] = useState('');
   const [validPwd, setValidPwd] = useState(false);
   const [pwdFocus, setPwdFocus] = useState(false);
@@ -40,6 +39,17 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
   const [validMatch, setValidMatch] = useState(false);
   const [regErrMsg, setRegErrMsg] = useState('');
   const [regSuccess, setRegSuccess] = useState(false);
+
+  // Donation categories
+  const [categories, setCategories] = useState([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+
+  // Authenticated user
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('gaza_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem('gaza_token') || '');
 
   // Donation states
   const [selectedAmount, setSelectedAmount] = useState(null);
@@ -50,6 +60,7 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
   const [cvv, setCvv] = useState('');
   const [errMsg, setErrMsg] = useState('');
   const [success, setSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Focus on registration username input when inscription tab is active
   useEffect(() => {
@@ -71,14 +82,7 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
 
   // Validate registration email
   useEffect(() => {
-    const result = EMAIL_REGEX.test(regEmail);
-    setValidEmail(result);
-    if (result) {
-      const exists = checkEmailExists(regEmail);
-      setEmailExists(exists);
-    } else {
-      setEmailExists(false);
-    }
+    setValidEmail(EMAIL_REGEX.test(regEmail));
   }, [regEmail]);
 
   // Validate registration password and match
@@ -102,6 +106,30 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
     setErrMsg('');
   }, [selectedAmount, customAmount, cardNumber, cardName, expiryDate, cvv]);
 
+  useEffect(() => {
+    setShowLoginForm(!isLoggedIn);
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await donationCategoryAPI.getAll();
+        const list = Array.isArray(response) ? response : (response?.data || []);
+        setCategories(list);
+      } catch (err) {
+        console.error('Erreur lors du chargement des catégories de don:', err);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    if (categories.length && !selectedCategoryId) {
+      setSelectedCategoryId(categories[0].id);
+    }
+  }, [categories, selectedCategoryId]);
+
   // Handle registration submit
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
@@ -114,30 +142,30 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
       return;
     }
 
-    if (emailExists) {
-      setRegErrMsg('Cet email est déjà utilisé. Veuillez vous connecter ou utiliser un autre email.');
-      return;
-    }
-
     try {
-      const result = registerUser(regUser, regEmail, regPwd);
-      if (result.success) {
-        console.log('Utilisateur enregistré:', result.user);
-        setRegSuccess(true);
-        setTimeout(() => {
-          setActiveTab('connexion');
-          setRegSuccess(false);
-          // Clear registration fields
-          setRegUser('');
-          setRegEmail('');
-          setRegPwd('');
-          setMatchPwd('');
-        }, 1500);
-      } else {
-        setRegErrMsg(result.message);
-      }
+      await authAPI.register({
+        name: regUser.trim(),
+        email: regEmail.toLowerCase().trim(),
+        password: regPwd,
+      });
+      setRegSuccess(true);
+      setRegErrMsg('');
+      setTimeout(() => {
+        setActiveTab('connexion');
+        setRegSuccess(false);
+        // Clear registration fields
+        setRegUser('');
+        setRegEmail('');
+        setRegPwd('');
+        setMatchPwd('');
+      }, 1500);
     } catch (err) {
-      setRegErrMsg('Erreur lors de l\'inscription');
+      const fallback = 'Erreur lors de l\'inscription';
+      if (err?.payload?.errors?.email) {
+        setRegErrMsg(err.payload.errors.email[0]);
+      } else {
+        setRegErrMsg(err.message || fallback);
+      }
     }
   };
 
@@ -169,19 +197,29 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
     }
 
     try {
-      const result = verifyLogin(userEmail, pwd);
-      
-      if (result.success) {
-        console.log('Connexion réussie:', result.user);
-        localStorage.setItem("loggedIn", "true");
+      const response = await authAPI.login({
+        email: userEmail,
+        password: pwd,
+      });
+      const token = response.token;
+      const loggedInUser = response.user;
+      if (token && loggedInUser) {
+        localStorage.setItem('gaza_token', token);
+        localStorage.setItem('gaza_user', JSON.stringify(loggedInUser));
+        localStorage.setItem('loggedIn', 'true');
+        setAuthToken(token);
+        setCurrentUser(loggedInUser);
         setIsLoggedIn(true);
+        setShowLoginForm(false);
+        setUser('');
+        setPwd('');
         navigate('/success');
-      } else {
-        setLoginErrMsg(result.message);
-        loginErrRef.current?.focus();
+        return;
       }
+      setLoginErrMsg('Impossible de traiter la connexion');
+      loginErrRef.current?.focus();
     } catch (err) {
-      setLoginErrMsg('Erreur lors de la connexion');
+      setLoginErrMsg(err.message || 'Erreur lors de la connexion');
       loginErrRef.current?.focus();
     }
   };
@@ -202,10 +240,10 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const finalAmount = selectedAmount || customAmount;
+    const finalAmount = Number(selectedAmount ?? customAmount);
 
-    if (!finalAmount) {
-      setErrMsg('Veuillez sélectionner ou entrer un montant');
+    if (!finalAmount || isNaN(finalAmount)) {
+      setErrMsg('Veuillez sélectionner ou entrer un montant valide');
       errRef.current?.focus();
       return;
     }
@@ -216,20 +254,52 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
       return;
     }
 
+    if (!categories.length || !selectedCategoryId) {
+      setErrMsg('Aucun service de don disponible pour le moment');
+      errRef.current?.focus();
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      console.log({
-        montant: finalAmount,
-        carte: cardNumber,
-        nom: cardName,
-        expiration: expiryDate,
-        cvv: cvv
+      // Create donation with user info if logged in, otherwise use card name
+      const donationData = {
+        category_id: selectedCategoryId,
+        amount: finalAmount,
+        donor_name: currentUser ? currentUser.name : cardName,
+        donor_email: currentUser ? currentUser.email : `${cardName.toLowerCase().replace(/\s+/g, '')}@guest.com`,
+        message: `Don sécurisé via carte ${cardNumber.slice(-4)}`,
+      };
+
+      // Add user_id only if user is logged in
+      if (currentUser && currentUser.id) {
+        donationData.user_id = currentUser.id;
+      }
+
+      console.log('🔵 Submitting donation:', donationData);
+
+      const response = await donationAPI.create(donationData, {
+        token: authToken || undefined,
       });
-      // Store the amount and show success on this page
+
+      console.log('✅ Donation submitted successfully!');
+      console.log('✅ Response:', response);
+
       sessionStorage.setItem('donationAmount', finalAmount);
       setSuccess(true);
+      setSelectedAmount(null);
+      setCustomAmount('');
+      setCardNumber('');
+      setCardName('');
+      setExpiryDate('');
+      setCvv('');
+      setErrMsg('');
     } catch (err) {
-      setErrMsg('Erreur lors du traitement du don');
+      console.error('❌ Donation error:', err);
+      setErrMsg(err.message || 'Erreur lors du traitement du don');
       errRef.current?.focus();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -403,7 +473,7 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
                       <div className="form-group" style={{ marginBottom: '20px' }}>
                         <label htmlFor="regEmail" style={{ color: '#333', fontWeight: 600, marginBottom: '10px', display: 'block', fontSize: '15px' }}>
                           Email
-                          {emailExists ? <span style={{ color: '#d32f2f', marginLeft: '8px' }}>✗</span> : renderValidationIcon(validEmail, regEmail)}
+                          {renderValidationIcon(validEmail, regEmail)}
                         </label>
                         <div className="input-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '12px', border: '2px solid #e0e0e0', borderRadius: '10px', padding: '12px 15px', background: '#f9f9f9', transition: 'all 0.3s ease' }}>
                           <span className="input-icon" style={{ fontSize: '20px' }}>📧</span>
@@ -414,16 +484,11 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
                             onChange={(e) => setRegEmail(e.target.value)}
                             value={regEmail}
                             required
-                            aria-invalid={validEmail && !emailExists ? 'false' : 'true'}
+                            aria-invalid={validEmail ? 'false' : 'true'}
                             placeholder="Votre adresse email"
                             style={{ border: 'none', background: 'transparent', flex: 1, outline: 'none', fontSize: '15px', color: '#333' }}
                           />
                         </div>
-                        {emailExists && (
-                          <p style={{ color: '#d32f2f', fontSize: '12px', marginTop: '8px' }}>
-                            Cet email est déjà utilisé. Essayez de vous connecter.
-                          </p>
-                        )}
                       </div>
 
                       <div className="form-group" style={{ marginBottom: '20px' }}>
@@ -478,7 +543,7 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
 
                       <button
                         type="submit"
-                        disabled={!validName || !validEmail || emailExists || !validPwd || !validMatch}
+                        disabled={!validName || !validEmail || !validPwd || !validMatch}
                         className="submit-btn"
                         style={{ width: '100%', padding: '14px', background: '#4caf50', color: 'white', border: 'none', borderRadius: '10px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s ease' }}
                         onMouseEnter={(e) => { e.target.style.background = '#45a049'; }}
@@ -610,6 +675,12 @@ const Dons = ({ isLoggedIn, setIsLoggedIn }) => {
                 </button>
               ))}
             </div>
+
+            {categories.length > 0 && (
+              <div className="category-chip" style={{ marginTop: '12px', fontSize: '14px', color: '#555' }}>
+                Catégorie sélectionnée : {categories.find(c => c.id === selectedCategoryId)?.name ?? categories[0].name}
+              </div>
+            )}
 
             <div className="custom-amount">
               <label htmlFor="customAmount">Montant personnalisé</label>

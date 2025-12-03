@@ -20,15 +20,19 @@ export default function Temoignages() {
     const fetchTestimonials = async () => {
       try {
         const response = await testimonialAPI.getAll();
-        if (response.data && Array.isArray(response.data)) {
-          const formattedTestimonials = response.data.map(testimonial => ({
-            id: testimonial.id,
-            name: testimonial.name,
-            country: testimonial.country,
-            date: testimonial.created_at ? testimonial.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-            message: testimonial.message,
-            color: Math.random() > 0.5 ? "red" : "green"
-          }));
+        // Laravel returns array directly, not wrapped in data
+        const data = Array.isArray(response) ? response : (response.data || []);
+        if (data && Array.isArray(data)) {
+          const formattedTestimonials = data
+            .filter(t => t.approved === true || t.approved === 1) // Only show approved testimonials
+            .map(testimonial => ({
+              id: testimonial.id,
+              name: testimonial.name,
+              country: testimonial.country || 'Unknown',
+              date: testimonial.created_at ? testimonial.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+              message: testimonial.content || testimonial.message,
+              color: Math.random() > 0.5 ? "red" : "green"
+            }));
           setTestimonials(formattedTestimonials);
         }
       } catch (err) {
@@ -85,7 +89,7 @@ export default function Temoignages() {
       
     } catch (err) {
       console.error('Error submitting testimonial:', err);
-      alert('Erreur: Impossible de se connecter au serveur.\n\nVérifiez que:\n1. XAMPP Apache est démarré\n2. Le fichier simple-api.php existe dans gaza-support-backend\n3. La colonne "country" a été ajoutée à la table testimonials\n\nURL attendue: http://localhost/prj_web/gaza-support-backend/simple-api.php');
+      alert('Erreur: Impossible de se connecter au serveur.\n\nVérifiez que:\n1. Le backend Laravel est démarré (php artisan serve)\n2. Le serveur tourne sur http://localhost:8000\n3. La base de données est configurée\n\nErreur: ' + err.message);
     }
   };
 

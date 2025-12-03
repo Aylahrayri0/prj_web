@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DonationCategoryController;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\ArticleController;
@@ -28,7 +29,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-// Users - Public
+// Authentication & Users - Public
+Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/login', [AuthController::class, 'login']);
 Route::apiResource('users', \App\Http\Controllers\UserController::class);
 
 // Donation Categories - Public

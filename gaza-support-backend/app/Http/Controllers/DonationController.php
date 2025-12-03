@@ -30,6 +30,9 @@ class DonationController extends Controller
             'user_id' => 'nullable|exists:users,id',
         ]);
 
+        // Set default status to 'pending' if not provided
+        $validated['status'] = $validated['status'] ?? 'pending';
+
         $donation = Donation::create($validated);
         return response()->json($donation, 201);
     }

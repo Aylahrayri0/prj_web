@@ -3,41 +3,48 @@
  * Handles all HTTP requests to the Laravel API
  */
 
-const API_BASE_URL = 'http://localhost/gaza-support-backend/simple-api.php';
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 /**
  * Generic fetch wrapper with error handling
  */
 const fetchAPI = async (endpoint, options = {}) => {
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
-  
-  const defaultOptions = {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+  const { headers: customHeaders = {}, token, ...otherOptions } = options;
+
+  const headers = {
+    'Content-Type': 'application/json',
+    ...customHeaders,
   };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
+  const response = await fetch(url, {
+    ...otherOptions,
+    headers,
+  });
+
+  if (response.status === 204) {
+    return { success: true };
+  }
+
+  let data;
   try {
-    const response = await fetch(url, {
-      ...defaultOptions,
-      ...options,
-    });
+    data = await response.json();
+  } catch (err) {
+    data = null;
+  }
 
-    if (!response.ok && response.status !== 204) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
-    }
-
-    if (response.status === 204) {
-      return { success: true };
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('API Error:', error);
+  if (!response.ok) {
+    const message = data?.message || data?.error || `API Error: ${response.status} ${response.statusText}`;
+    const error = new Error(message);
+    error.status = response.status;
+    error.payload = data;
     throw error;
   }
+
+  return data;
 };
 
 /**
@@ -65,16 +72,19 @@ export const donationCategoryAPI = {
 export const donationAPI = {
   getAll: () => fetchAPI('/donations'),
   getById: (id) => fetchAPI(`/donations/${id}`),
-  create: (data) => fetchAPI('/donations', {
+  create: (data, options = {}) => fetchAPI('/donations', {
     method: 'POST',
     body: JSON.stringify(data),
+    ...options,
   }),
-  update: (id, data) => fetchAPI(`/donations/${id}`, {
+  update: (id, data, options = {}) => fetchAPI(`/donations/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
+    ...options,
   }),
-  delete: (id) => fetchAPI(`/donations/${id}`, {
+  delete: (id, options = {}) => fetchAPI(`/donations/${id}`, {
     method: 'DELETE',
+    ...options,
   }),
 };
 
@@ -101,17 +111,17 @@ export const articleAPI = {
  * Testimonials API
  */
 export const testimonialAPI = {
-  getAll: () => fetchAPI(''),
-  getById: (id) => fetchAPI(`/${id}`),
-  create: (data) => fetchAPI('', {
+  getAll: () => fetchAPI('/testimonials'),
+  getById: (id) => fetchAPI(`/testimonials/${id}`),
+  create: (data) => fetchAPI('/testimonials', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  update: (id, data) => fetchAPI(`/${id}`, {
+  update: (id, data) => fetchAPI(`/testimonials/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
-  delete: (id) => fetchAPI(`/${id}`, {
+  delete: (id) => fetchAPI(`/testimonials/${id}`, {
     method: 'DELETE',
   }),
 };
@@ -133,6 +143,17 @@ export const adminTestimonialAPI = {
   }),
   delete: (id) => fetchAPI(`/admin/testimonials/${id}`, {
     method: 'DELETE',
+  }),
+};
+
+export const authAPI = {
+  register: (data) => fetchAPI('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  login: (data) => fetchAPI('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(data),
   }),
 };
 
@@ -161,5 +182,6 @@ export default {
   articleAPI,
   testimonialAPI,
   adminTestimonialAPI,
+  authAPI,
   impactAPI,
 };

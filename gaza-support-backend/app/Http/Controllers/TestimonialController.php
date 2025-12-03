@@ -13,9 +13,9 @@ class TestimonialController extends Controller
      */
     public function index(): JsonResponse
     {
-        // Only return approved testimonials for public view
-        $testimonials = Testimonial::where('approved', true)
-            ->orderBy('created_at', 'desc')
+        // Return ALL testimonials for admin, approved ones for public
+        // Admin can filter on frontend
+        $testimonials = Testimonial::orderBy('created_at', 'desc')
             ->get()
             ->map(function($testimonial) {
                 return [
@@ -23,6 +23,7 @@ class TestimonialController extends Controller
                     'name' => $testimonial->name,
                     'country' => $testimonial->country ?? $testimonial->email,
                     'message' => $testimonial->content,
+                    'content' => $testimonial->content,
                     'rating' => $testimonial->rating,
                     'image_url' => $testimonial->image_url,
                     'approved' => $testimonial->approved,
@@ -77,12 +78,13 @@ class TestimonialController extends Controller
     public function update(Request $request, Testimonial $testimonial): JsonResponse
     {
         $validated = $request->validate([
-            'name' => 'required|string',
-            'email' => 'required|email',
-            'content' => 'required|string',
-            'rating' => 'required|integer|between:1,5',
+            'name' => 'sometimes|string',
+            'email' => 'sometimes|email',
+            'country' => 'sometimes|string',
+            'content' => 'sometimes|string',
+            'rating' => 'sometimes|integer|between:1,5',
             'image_url' => 'nullable|string',
-            'approved' => 'required|boolean',
+            'approved' => 'sometimes|boolean',
         ]);
 
         $testimonial->update($validated);

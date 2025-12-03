@@ -1,7 +1,73 @@
 import "./Administrateur.css";
 import { useNavigate } from "react-router-dom";
 import React from "react";
-import { adminTestimonialAPI } from '../utils/api';
+import { donationAPI, testimonialAPI } from '../utils/api';
+
+const API_BASE = 'http://localhost:8000/api';
+
+const adminFetch = async (path, options = {}) => {
+  const url = `${API_BASE}${path}`;
+  const fetchOptions = {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+    ...options,
+  };
+
+  if (fetchOptions.body && typeof fetchOptions.body !== 'string') {
+    fetchOptions.body = JSON.stringify(fetchOptions.body);
+  }
+
+  const response = await fetch(url, fetchOptions);
+  
+  if (response.status === 204) {
+    return { success: true };
+  }
+  
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
+      data = null;
+    }
+  }
+
+  if (!response.ok) {
+    const message = data?.error || data?.message || 'Erreur lors de la requête';
+    throw new Error(message);
+  }
+
+  return data;
+};
+
+const detectDonationMethod = (donation) => {
+  const message = (donation.message || '').toLowerCase();
+  if (message.includes('paypal')) return 'PayPal';
+  if (message.includes('virement')) return 'Virement';
+  return 'Carte bancaire';
+};
+
+const formatDonationStatus = (status) => {
+  switch (status) {
+    case 'completed':
+      return { label: 'Confirmé', cssClass: 'confirmed' };
+    case 'failed':
+      return { label: 'Rejeté', cssClass: 'rejected' };
+    case 'pending':
+    default:
+      return { label: 'En attente', cssClass: 'pending' };
+  }
+};
+
+const formatDonationDate = (createdAt) => {
+  if (!createdAt) return '-';
+  const date = new Date(createdAt);
+  return date.toLocaleDateString('fr-FR');
+};
 
 export default function Administrateur() {
   const navigate = useNavigate();
@@ -12,14 +78,8 @@ export default function Administrateur() {
   const [loginError, setLoginError] = React.useState("");
   const [activeTab, setActiveTab] = React.useState("dashboard");
 
-  // Sample donation data
-  const [donations, setDonations] = React.useState([
-    { id: 1, name: "Sarah M.", amount: 150, method: "Carte Bancaire", date: "2024-11-15", status: "Confirmé" },
-    { id: 2, name: "Ahmed K.", amount: 250, method: "PayPal", date: "2024-11-14", status: "Confirmé" },
-    { id: 3, name: "Maria G.", amount: 100, method: "Virement", date: "2024-11-13", status: "En attente" },
-    { id: 4, name: "John P.", amount: 500, method: "Carte Bancaire", date: "2024-11-12", status: "Confirmé" },
-    { id: 5, name: "Yasmine B.", amount: 75, method: "PayPal", date: "2024-11-11", status: "Confirmé" },
-  ]);
+  const [donations, setDonations] = React.useState([]);
+  const [loadingDonations, setLoadingDonations] = React.useState(true);
 
   // Sample messages data
   const [messages, setMessages] = React.useState([]);
@@ -27,39 +87,42 @@ export default function Administrateur() {
 
   // Dashboard statistics
   const [statistics, setStatistics] = React.useState({
-    donationsToday: 5,
-    donationsWeek: 28,
-    donationsMonth: 125,
-    totalAmount: 12500,
-    messagesReceived: 4,
+    donationsToday: 0,
+    donationsWeek: 0,
+    donationsMonth: 0,
+    totalAmount: 0,
+    messagesReceived: 0,
     visitors: 8934,
   });
 
-  // Fetch testimonials from backend when component loads or when logged in
+  // Fetch testimonials from the Laravel API when the admin is logged in
   React.useEffect(() => {
+    if (!isLoggedIn) {
+      setMessages([]);
+      setLoadingMessages(false);
+      return;
+    }
+
     const fetchTestimonials = async () => {
       try {
         setLoadingMessages(true);
-        // Fetch all testimonials from admin endpoint
-        const response = await adminTestimonialAPI.getAll();
-        console.log('Admin testimonials response:', response);
-        
-        if (response.data) {
-          const formattedMessages = response.data.map(testimonial => ({
-            id: testimonial.id,
-            name: testimonial.name,
-            country: testimonial.country || testimonial.email || 'Unknown',
-            message: testimonial.content,
-            date: testimonial.created_at ? testimonial.created_at.split(' ')[0] : new Date().toISOString().split('T')[0],
-            status: testimonial.approved == 1 ? "Approuvé" : "En attente",
-            isPinned: false
-          }));
-          setMessages(formattedMessages);
-          setStatistics(prev => ({
-            ...prev,
-            messagesReceived: formattedMessages.length
-          }));
-        }
+        const response = await testimonialAPI.getAll();
+        const allTestimonials = response?.data || response || [];
+        const formattedMessages = allTestimonials.map(testimonial => ({
+          id: testimonial.id,
+          name: testimonial.name,
+          country: testimonial.country || testimonial.email || 'Unknown',
+          message: testimonial.content || testimonial.message || '',
+          date: testimonial.created_at ? testimonial.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+          status: testimonial.approved ? 'Approuvé' : 'En attente',
+          isPinned: false,
+          approved: testimonial.approved
+        }));
+        setMessages(formattedMessages);
+        setStatistics(prev => ({
+          ...prev,
+          messagesReceived: formattedMessages.filter(m => !m.approved).length
+        }));
       } catch (err) {
         console.error('Error fetching testimonials:', err);
       } finally {
@@ -68,7 +131,41 @@ export default function Administrateur() {
     };
 
     fetchTestimonials();
-  }, []);
+  }, [isLoggedIn]);
+
+  React.useEffect(() => {
+    const fetchDonations = async () => {
+      try {
+        setLoadingDonations(true);
+        console.log('🔵 Fetching donations from API...');
+        const response = await donationAPI.getAll();
+        const donationsData = Array.isArray(response) ? response : (response?.data || []);
+        console.log(`✅ Loaded ${donationsData.length} donations:`, donationsData);
+        setDonations(donationsData);
+
+        const totalAmount = donationsData.reduce((sum, donation) => sum + Number(donation.amount || 0), 0);
+        const todayKey = new Date().toISOString().split('T')[0];
+        const donationsToday = donationsData.filter(d => (d.created_at || '').startsWith(todayKey)).length;
+
+        setStatistics(prev => ({
+          ...prev,
+          donationsToday,
+          donationsWeek: donationsData.length,
+          donationsMonth: donationsData.length,
+          totalAmount,
+        }));
+      } catch (err) {
+        console.error('❌ Error fetching donations:', err);
+      } finally {
+        setLoadingDonations(false);
+      }
+    };
+
+    // Fetch donations when component mounts AND when user logs in
+    if (isLoggedIn) {
+      fetchDonations();
+    }
+  }, [isLoggedIn]);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -112,20 +209,36 @@ export default function Administrateur() {
     navigate("/");
   };
 
-  const deleteDonation = (id) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette donation ?")) {
-      setDonations(donations.filter(d => d.id !== id));
+  const deleteDonation = async (id) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cette donation ?")) {
+      return;
+    }
+
+    try {
+      await donationAPI.delete(id);
+      const updated = donations.filter(d => d.id !== id);
+      setDonations(updated);
+      const totalAmount = updated.reduce((sum, donation) => sum + Number(donation.amount || 0), 0);
+      setStatistics(prev => ({
+        ...prev,
+        donationsWeek: updated.length,
+        donationsMonth: updated.length,
+        totalAmount,
+      }));
+    } catch (err) {
+      console.error('Error deleting donation:', err);
+      alert('Erreur lors de la suppression de la donation');
     }
   };
 
   const deleteMessage = async (id) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer ce message ?")) {
       try {
-        await adminTestimonialAPI.delete(id);
-        setMessages(messages.filter(m => m.id !== id));
+        await testimonialAPI.delete(id);
+        setMessages(prev => prev.filter(m => m.id !== id));
         setStatistics(prev => ({
           ...prev,
-          messagesReceived: prev.messagesReceived - 1
+          messagesReceived: Math.max(prev.messagesReceived - 1, 0)
         }));
       } catch (err) {
         console.error('Error deleting message:', err);
@@ -136,8 +249,11 @@ export default function Administrateur() {
 
   const approveMessage = async (id) => {
     try {
-      await adminTestimonialAPI.approve(id);
-      setMessages(messages.map(m => m.id === id ? { ...m, status: "Approuvé" } : m));
+      await adminFetch(`/testimonials/${id}`, {
+        method: 'PUT',
+        body: { approved: true }
+      });
+      setMessages(prev => prev.map(m => m.id === id ? { ...m, status: 'Approuvé', approved: true } : m));
     } catch (err) {
       console.error('Error approving message:', err);
       alert('Erreur lors de l\'approbation du message');
@@ -146,8 +262,15 @@ export default function Administrateur() {
 
   const rejectMessage = async (id) => {
     try {
-      await adminTestimonialAPI.reject(id);
-      setMessages(messages.map(m => m.id === id ? { ...m, status: "Rejeté" } : m));
+      await adminFetch(`/testimonials/${id}`, {
+        method: 'PUT',
+        body: { approved: false }
+      });
+      setMessages(prev => prev.filter(m => m.id !== id));
+      setStatistics(prev => ({
+        ...prev,
+        messagesReceived: Math.max(prev.messagesReceived - 1, 0)
+      }));
     } catch (err) {
       console.error('Error rejecting message:', err);
       alert('Erreur lors du rejet du message');
@@ -393,23 +516,26 @@ export default function Administrateur() {
                     </tr>
                   </thead>
                   <tbody>
-                    {donations.map(donation => (
-                      <tr key={donation.id}>
-                        <td>{donation.name}</td>
-                        <td className="amount">${donation.amount}</td>
-                        <td>{donation.method}</td>
-                        <td>{donation.date}</td>
-                        <td>
-                          <span className={`status-badge ${donation.status === 'Confirmé' ? 'confirmed' : 'pending'}`}>
-                            {donation.status}
-                          </span>
-                        </td>
-                        <td className="actions">
-                          <button className="edit-btn" title="Éditer">✏️</button>
-                          <button className="delete-btn" onClick={() => deleteDonation(donation.id)} title="Supprimer">🗑️</button>
-                        </td>
-                      </tr>
-                    ))}
+                    {donations.map(donation => {
+                      const statusMeta = formatDonationStatus(donation.status);
+                      return (
+                        <tr key={donation.id}>
+                          <td>{donation.donor_name || donation.user?.name || 'Invité'}</td>
+                          <td className="amount">${Number(donation.amount || 0).toLocaleString('fr-FR')}</td>
+                          <td>{detectDonationMethod(donation)}</td>
+                          <td>{formatDonationDate(donation.created_at)}</td>
+                          <td>
+                            <span className={`status-badge ${statusMeta.cssClass}`}>
+                              {statusMeta.label}
+                            </span>
+                          </td>
+                          <td className="actions">
+                            <button className="edit-btn" title="Éditer">✏️</button>
+                            <button className="delete-btn" onClick={() => deleteDonation(donation.id)} title="Supprimer">🗑️</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
