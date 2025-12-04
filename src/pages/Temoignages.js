@@ -1,11 +1,40 @@
 import "./Temoignages.css";
-import { useNavigate } from "react-router-dom";
 import React from "react";
 import { testimonialAPI } from '../utils/api';
+import MainHeader from "../components/MainHeader";
+
+const FALLBACK_TESTIMONIALS = [
+  {
+    id: "fallback-1",
+    name: "Amina B.",
+    country: "Maroc",
+    date: "2024-05-01",
+    message: "Nous sommes à vos côtés jour et nuit.",
+    color: "green",
+    approved: true,
+  },
+  {
+    id: "fallback-2",
+    name: "Jean L.",
+    country: "France",
+    date: "2024-04-22",
+    message: "Que la paix revienne rapidement.",
+    color: "green",
+    approved: true,
+  },
+  {
+    id: "fallback-3",
+    name: "Sara K.",
+    country: "Canada",
+    date: "2024-03-18",
+    message: "Force et courage au peuple de Gaza.",
+    color: "green",
+    approved: true,
+  },
+];
 
 // Testimonials page component with message submission functionality
 export default function Temoignages() {
-  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [testimonials, setTestimonials] = React.useState([]);
   const [formData, setFormData] = React.useState({
@@ -14,29 +43,59 @@ export default function Temoignages() {
     message: ''
   });
   const [submitSuccess, setSubmitSuccess] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [errorMessage, setErrorMessage] = React.useState('');
+  const [pendingCount, setPendingCount] = React.useState(0);
+  const [usingFallback, setUsingFallback] = React.useState(false);
 
   // Load approved testimonials from backend on page load
   React.useEffect(() => {
     const fetchTestimonials = async () => {
+      setIsLoading(true);
+      setErrorMessage('');
       try {
         const response = await testimonialAPI.getAll();
         // Laravel returns array directly, not wrapped in data
-        const data = Array.isArray(response) ? response : (response.data || []);
+        const data = Array.isArray(response) ? response : (response?.data || []);
+
         if (data && Array.isArray(data)) {
-          const formattedTestimonials = data
-            .filter(t => t.approved === true || t.approved === 1) // Only show approved testimonials
-            .map(testimonial => ({
-              id: testimonial.id,
-              name: testimonial.name,
+          const formattedTestimonials = data.map((testimonial) => {
+            const isApproved = testimonial.approved === true || testimonial.approved === 1;
+            const createdAt = testimonial.created_at ? new Date(testimonial.created_at) : new Date();
+            return {
+              id: testimonial.id ?? `testimonial-${Math.random().toString(36).slice(2)}`,
+              name: testimonial.name || 'Anonyme',
               country: testimonial.country || 'Unknown',
-              date: testimonial.created_at ? testimonial.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-              message: testimonial.content || testimonial.message,
-              color: Math.random() > 0.5 ? "red" : "green"
-            }));
-          setTestimonials(formattedTestimonials);
+              date: createdAt.toISOString().split('T')[0],
+              message: testimonial.content || testimonial.message || '—',
+              color: isApproved ? 'green' : 'red',
+              approved: isApproved,
+            };
+          });
+
+          const approvedTestimonials = formattedTestimonials.filter(t => t.approved);
+          const pendingOnly = formattedTestimonials.length - approvedTestimonials.length;
+          setPendingCount(pendingOnly);
+
+          if (approvedTestimonials.length === 0) {
+            setTestimonials(FALLBACK_TESTIMONIALS);
+            setUsingFallback(true);
+          } else {
+            setTestimonials(approvedTestimonials);
+            setUsingFallback(false);
+          }
+        } else {
+          setTestimonials(FALLBACK_TESTIMONIALS);
+          setUsingFallback(true);
         }
       } catch (err) {
         console.error('Error fetching testimonials:', err);
+        setErrorMessage('Impossible de se connecter au serveur. Affichage des témoignages de démonstration.');
+        setTestimonials(FALLBACK_TESTIMONIALS);
+        setUsingFallback(true);
+        setPendingCount(0);
+      } finally {
+        setIsLoading(false);
       }
     };
     
@@ -95,21 +154,7 @@ export default function Temoignages() {
 
   return (
     <div className="temoignages-container">
-      {/* Header */}
-      <header className="header">
-        <div className="header-left">
-          <div className="flag-logo">
-            <img src="d5246caa268f230b17f5803d45ede1e6.jpg" alt="Palestine" className="palestine-logo" />
-          </div>
-          <span className="logo-text">GAZA</span>
-        </div>
-        <nav className="nav-menu">
-          <button className="nav-btn" onClick={() => navigate('/')}>Accueil</button>
-          <button className="nav-btn" onClick={() => navigate('/dons')}>Dons</button>
-          <button className="nav-btn active">Témoignages</button>
-          <button className="nav-btn" onClick={() => navigate('/administrateur')}>Administrateur</button>
-        </nav>
-      </header>
+      <MainHeader activeKey="temoignages" />
 
       {/* Main Section */}
       <section className="temoignages-section">
@@ -121,6 +166,17 @@ export default function Temoignages() {
           <button className="submit-btn" onClick={handleOpenModal}>📝 Envoyer un message de soutien</button>
         </div>
 
+        {isLoading && <div className="info-banner info-loading">Chargement des témoignages...</div>}
+        {errorMessage && <div className="info-banner info-error">{errorMessage}</div>}
+        {usingFallback && !errorMessage && (
+          <div className="info-banner info-warning">
+            Les témoignages ci-dessous sont fournis à titre d'exemple en attendant la validation de nouveaux messages.
+          </div>
+        )}
+        {!isLoading && testimonials.length === 0 && (
+          <div className="info-banner info-empty">Aucun témoignage n'est disponible pour le moment.</div>
+        )}
+
         {/* Testimonials Grid */}
         <div className="testimonials-grid">
           {testimonials.map((testimonial) => (
@@ -131,6 +187,9 @@ export default function Temoignages() {
                   <span className="author-name">{testimonial.name}</span>
                   <span className={`country-badge ${testimonial.color}`}>{testimonial.country}</span>
                 </div>
+                <span className={`status-pill ${testimonial.approved ? 'approved' : 'pending'}`}>
+                  {testimonial.approved ? 'Validé' : 'En attente'}
+                </span>
                 <span className="card-date">{testimonial.date}</span>
               </div>
               <p className="card-message">"{testimonial.message}"</p>

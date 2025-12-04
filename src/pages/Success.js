@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Success.css';
+import { donationAPI, donationCategoryAPI } from '../utils/api';
 
 const Success = ({ isLoggedIn, setIsLoggedIn }) => {
   const navigate = useNavigate();
@@ -17,6 +18,33 @@ const Success = ({ isLoggedIn, setIsLoggedIn }) => {
   const [errMsg, setErrMsg] = useState('');
   const [success, setSuccess] = useState(false);
   const [showDonationSection, setShowDonationSection] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentUser] = useState(() => {
+    const saved = localStorage.getItem('gaza_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [authToken] = useState(() => localStorage.getItem('gaza_token') || '');
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await donationCategoryAPI.getAll();
+        setCategories(response || []);
+      } catch (error) {
+        console.error('❌ Failed to load donation categories:', error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    if (categories.length && !selectedCategoryId) {
+      setSelectedCategoryId(categories[0].id);
+    }
+  }, [categories, selectedCategoryId]);
 
   const handleLogout = () => {
     localStorage.removeItem("loggedIn");
@@ -37,13 +65,22 @@ const Success = ({ isLoggedIn, setIsLoggedIn }) => {
     }
   };
 
+  const resetDonationForm = () => {
+    setSelectedAmount(null);
+    setCustomAmount('');
+    setCardNumber('');
+    setCardName('');
+    setExpiryDate('');
+    setCvv('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const finalAmount = selectedAmount || customAmount;
+    const finalAmount = Number(selectedAmount ?? customAmount);
 
-    if (!finalAmount) {
-      setErrMsg('Veuillez sélectionner ou entrer un montant');
+    if (!finalAmount || isNaN(finalAmount)) {
+      setErrMsg('Veuillez sélectionner ou entrer un montant valide');
       errRef.current?.focus();
       return;
     }
@@ -54,27 +91,44 @@ const Success = ({ isLoggedIn, setIsLoggedIn }) => {
       return;
     }
 
-    try {
-      console.log({
-        montant: finalAmount,
-        carte: cardNumber,
-        nom: cardName,
-        expiration: expiryDate,
-        cvv: cvv
-      });
-      setSuccess(true);
-      setTimeout(() => {
-        setSuccess(false);
-        setSelectedAmount(null);
-        setCustomAmount('');
-        setCardNumber('');
-        setCardName('');
-        setExpiryDate('');
-        setCvv('');
-      }, 2000);
-    } catch (err) {
-      setErrMsg('Erreur lors du traitement du don');
+    if (!categories.length || !selectedCategoryId) {
+      setErrMsg('Aucun service de don disponible pour le moment');
       errRef.current?.focus();
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const donationData = {
+        category_id: selectedCategoryId,
+        amount: finalAmount,
+        donor_name: currentUser ? currentUser.name : cardName,
+        donor_email: currentUser ? currentUser.email : `${cardName.toLowerCase().replace(/\s+/g, '')}@guest.com`,
+        message: `Don sécurisé via carte ${cardNumber.slice(-4)}`,
+      };
+
+      if (currentUser?.id) {
+        donationData.user_id = currentUser.id;
+      }
+
+      console.log('🔵 Submitting donation from Success page:', donationData);
+
+      await donationAPI.create(donationData, {
+        token: authToken || undefined,
+      });
+
+      console.log('✅ Donation submitted successfully from Success page');
+
+      sessionStorage.setItem('donationAmount', finalAmount);
+      setSuccess(true);
+      resetDonationForm();
+      setErrMsg('');
+    } catch (err) {
+      console.error('❌ Donation error on Success page:', err);
+      setErrMsg(err.message || 'Erreur lors du traitement du don');
+      errRef.current?.focus();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -90,10 +144,10 @@ const Success = ({ isLoggedIn, setIsLoggedIn }) => {
           <div className="flag-logo">
             <svg viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg">
               <rect width="900" height="600" fill="white"/>
-              <rect width="900" height="200" fill="#CE1126"/>
-              <rect y="200" width="900" height="200" fill="white"/>
+              <rect width="900" height="200" fill="#000000"/>
+              <rect y="200" width="900" height="200" fill="#ffffff"/>
               <rect y="400" width="900" height="200" fill="#007A5E"/>
-              <polygon points="0,0 200,300 0,600" fill="black"/>
+              <polygon points="0,0 200,300 0,600" fill="#CE1126"/>
             </svg>
           </div>
           <span className="logo-text">GAZA</span>
@@ -161,16 +215,68 @@ const Success = ({ isLoggedIn, setIsLoggedIn }) => {
         </>
       ) : (
         <>
-          {success ? (
-            <section className="donation-success">
-              <h1>Merci pour votre générosité!</h1>
-              <p>
-                Votre générosité aide à reconstruire Gaza et à apporter de l'espoir
-              </p>
-              <button onClick={() => navigate('/accueil')} className="back-btn">Retour à l'accueil</button>
-            </section>
-          ) : (
-            <section className="donation-section">
+          {success && (
+            <div style={{
+              position: 'fixed',
+              top: '60px',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: '20px'
+            }}>
+              <div style={{ background: 'white', borderRadius: '12px', padding: '40px', maxWidth: '600px', width: '100%', textAlign: 'center', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+                <div style={{ fontSize: '80px', marginBottom: '20px', color: '#4caf50' }}>✓</div>
+                <h1 style={{ fontSize: '42px', fontWeight: '700', marginBottom: '15px', color: '#4caf50' }}>Don Confirmé!</h1>
+                <p style={{ fontSize: '16px', marginBottom: '20px', color: '#666' }}>
+                  Votre générosité aide à reconstruire Gaza et à apporter de l'espoir
+                </p>
+                <div style={{ background: '#f5f5f5', borderRadius: '10px', padding: '20px', marginBottom: '30px' }}>
+                  <p style={{ fontSize: '16px', color: '#333', marginBottom: '10px' }}>
+                    Merci de votre coopération avec nous!
+                  </p>
+                  <p style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}>
+                    Merci de votre contribution et de votre soutien.
+                  </p>
+                  <p style={{ fontSize: '18px', fontWeight: '700', color: '#CE1126' }}>
+                    Montant du don: {sessionStorage.getItem('donationAmount')}€
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSuccess(false);
+                    resetDonationForm();
+                    sessionStorage.removeItem('donationAmount');
+                  }}
+                  style={{
+                    padding: '12px 35px',
+                    background: '#4caf50',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = '#45a049';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = '#4caf50';
+                  }}
+                >
+                  Refaire un don
+                </button>
+              </div>
+            </div>
+          )}
+
+          <section className="donation-section">
               <p ref={errRef} className={errMsg ? "errmsg" : "offscreen"} aria-live="assertive">
                 {errMsg}
               </p>
@@ -182,10 +288,10 @@ const Success = ({ isLoggedIn, setIsLoggedIn }) => {
                   <div className="flag-center">
                     <svg viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg">
                       <rect width="900" height="600" fill="white"/>
-                      <rect width="900" height="200" fill="#CE1126"/>
-                      <rect y="200" width="900" height="200" fill="white"/>
+                      <rect width="900" height="200" fill="#000000"/>
+                      <rect y="200" width="900" height="200" fill="#ffffff"/>
                       <rect y="400" width="900" height="200" fill="#007A5E"/>
-                      <polygon points="0,0 200,300 0,600" fill="black"/>
+                      <polygon points="0,0 200,300 0,600" fill="#CE1126"/>
                     </svg>
                   </div>
 
@@ -283,8 +389,8 @@ const Success = ({ isLoggedIn, setIsLoggedIn }) => {
                     </div>
                   </div>
 
-                  <button type="submit" className="submit-btn">
-                    Confirmer le don de {selectedAmount || customAmount || '0'}€
+                  <button type="submit" className="submit-btn" disabled={isSubmitting}>
+                    {isSubmitting ? 'Traitement...' : `Confirmer le don de ${selectedAmount || customAmount || '0'}€`}
                   </button>
 
                   <p className="security-info">
@@ -293,7 +399,6 @@ const Success = ({ isLoggedIn, setIsLoggedIn }) => {
                 </form>
               </footer>
             </section>
-          )}
         </>
       )}
 

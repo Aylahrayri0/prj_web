@@ -149,6 +149,38 @@
   margin-bottom: 80px;
 }
 
+.info-banner {
+  padding: 14px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.info-loading {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.info-error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.info-warning {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.info-empty {
+  background: #f3f4f6;
+  color: #4b5563;
+  text-align: center;
+  justify-content: center;
+}
+
 /* Testimonial Card */
 .testimonial-card {
   padding: 30px;
@@ -208,6 +240,25 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.status-pill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-pill.approved {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.status-pill.pending {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
 }
 
 .author-name {
